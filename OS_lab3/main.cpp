@@ -23,29 +23,31 @@ DWORD WINAPI Marker(LPVOID v) {
     auto cur = (ThreadInfo*)v; //current ThreadInfo object
     EnterCriticalSection(&cs);
     srand(cur->num);
-    int num;
-    bool* marked = new bool[cur->num]; //array to track marked elements
-    for (int i = 0; i < cur->num; i++) {
+    
+    bool* marked = new bool[arr_size]; //array to track marked elements
+    for (int i = 0; i < arr_size; i++) {
         marked[i] = false;
     }
     LeaveCriticalSection(&cs);
 
     while(true) {
-        num = rand() % (cur->num); //random number
+        int num = rand();
+        EnterCriticalSection(&cs);
+        //std::cout << "thr " << cur->num << " rand " << num << " ans " << num%arr_size << "\n";
+        LeaveCriticalSection(&cs);
+        num %= (arr_size); //random number
+        //EnterCriticalSection(&cs);
         EnterCriticalSection(&cs);
         if (array[num] == 0) { //if the element is equal 0
             Sleep(5);
             array[num] = cur->num;
             marked[num] = true;
             ++cur->marked_num;
-
+            LeaveCriticalSection(&cs);
             Sleep(5);
         }
-        LeaveCriticalSection(&cs);
-        if (array[num] != 0) { //if the element isn't equal 0
-            
+        else if (array[num] != 0) { //if the element isn't equal 0
             //print info about thread
-            EnterCriticalSection(&cs);
             std::cout << "\nMarker №" << cur->num << "\nCan't modify the element with index: " 
                         << num << "\nNumber of marked elements: " << cur->marked_num << std::endl << std::endl;
             LeaveCriticalSection(&cs);
@@ -59,7 +61,7 @@ DWORD WINAPI Marker(LPVOID v) {
             //got signal to finish thread 
             if (cur->flag == true) {
                 EnterCriticalSection(&cs);
-                for (int i = 0; i < cur->num; i++) {
+                for (int i = 0; i < arr_size; i++) {
                     if (marked[i]) {
                         array[i] = 0;
                     }
