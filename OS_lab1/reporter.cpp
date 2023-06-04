@@ -8,6 +8,9 @@ int main(int argc, char *argv[])
 	double salary_per_hour = atof(argv[3]);
 
 	int records_num;
+
+	//read an array
+
 	fin.read((char *)&records_num, sizeof(int));
 	employee *records = new employee[records_num];
 
@@ -16,14 +19,14 @@ int main(int argc, char *argv[])
 		fin.read((char *)&records[i], sizeof(employee));
 	}
 
+	//print info
 	for (int i = 0; i < records_num; i++)
 	{
 		fout << "ID: " << records[i].num << " Name: " << records[i].name << " Hours: " << records[i].hours << " Total salary: " << records[i].hours * salary_per_hour << std::endl;
 	}
-	fin.close();
-	fout.close();
 
 	delete[] records;
-
+	fout.close();
+	fin.close();
 	return 0;
 }

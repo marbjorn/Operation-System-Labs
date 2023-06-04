@@ -2,10 +2,12 @@
 #include <iostream>
 #include <fstream>
 #include "employee.h"
-#include <conio.h>
-#include <string>
+#include <vector>
 
-void startProcess(char* buffer) {
+void startProcess(char *buffer)
+{
+
+	// initialize new process
 	STARTUPINFO si;
 	ZeroMemory(&si, sizeof(STARTUPINFO));
 	si.cb = sizeof(si);
@@ -24,58 +26,67 @@ void startProcess(char* buffer) {
 	CloseHandle(pi.hProcess);
 }
 
+void printInfo(std::vector<employee> records)
+{
+	std::cout << records[0].num << " " << records[0].name << " " << records[0].hours;
+	for (int i = 1; i < records.size(); i++)
+	{
+		std::cout << std::endl
+				  << records[i].num << " " << records[i].name << " " << records[i].hours;
+	}
+}
+
 int main()
 {
-	char binary_file_name[256];
+	char binaryFileName[256];
 
 	std::cout << "Enter binary file name: ";
-	std::cin.getline(binary_file_name, 256);
-	int records_num = 0;
+	std::cin.getline(binaryFileName, 256);
+	int recordsNum = 0;
 	std::cout << "Enter the number of records: ";
-	std::cin >> records_num;
+	std::cin >> recordsNum;
 	std::cin.ignore();
 
 	char buffer[1000];
-	sprintf_s(buffer, "%s %s %d", "creator.exe", binary_file_name, records_num);
+	sprintf_s(buffer, "%s %s %d", "creator.exe", binaryFileName, recordsNum);
 	startProcess(buffer);
 
+	// read info from binary file
 	std::cout << "Information in binary file:" << std::endl;
-	std::ifstream fin(binary_file_name, std::ios::binary);
-	fin.read((char *)&records_num, sizeof(int));
-	employee *records = new employee[records_num];
+	std::ifstream fin(binaryFileName, std::ios::binary);
+	fin.read((char *)&recordsNum, sizeof(int));
+	
+	std::vector<employee> records(recordsNum);
 
-	for (int i = 0; i < records_num; i++)
+	//read an array
+	for (int i = 0; i < recordsNum; i++)
 	{
 		fin.read((char *)&records[i], sizeof(employee));
 	}
 
-	std::cout << records[0].num << " " << records[0].name << " " << records[0].hours;
-	for (int i = 1; i < records_num; i++)
-	{
-		std::cout << std::endl
-			 << records[i].num << " " << records[i].name << " " << records[i].hours;
-	}
+	printInfo(records);
 
-	delete[] records;
 	fin.close();
 
-	char output_file_name[256];
+	//initialize file for repoter and start reporter
+	char outputFileName[256];
 	std::cout << "\n\nEnter output file name: ";
-	std::cin.getline(output_file_name, 256);
-	double salary_per_hour = 0.0;
+	std::cin.getline(outputFileName, 256);
+	double salaryPerHour = 0.0;
 	std::cout << "Enter salary value per one hour: ";
-	std::cin >> salary_per_hour;
+	std::cin >> salaryPerHour;
 
 	buffer[0] = '\0';
-	sprintf_s(buffer, "%s %s %s %lf", "reporter.exe", binary_file_name, output_file_name, salary_per_hour);
+	sprintf_s(buffer, "%s %s %s %lf", "reporter.exe", binaryFileName, outputFileName, salaryPerHour);
 	startProcess(buffer);
-	
-	std::ifstream finReportInfo(output_file_name);
 
+	std::ifstream finReportInfo(outputFileName);
+
+	//read info from output file
 	std::cout << std::endl
-		 << "Information in output file:" << std::endl;
+			  << "Information in output file:" << std::endl;
 	char str[1000];
-	for (int i = 0; i < records_num; i++)
+	for (int i = 0; i < recordsNum; i++)
 	{
 		finReportInfo.getline(str, 1000);
 		for (int i = 0; str[i] != '\0'; i++)
