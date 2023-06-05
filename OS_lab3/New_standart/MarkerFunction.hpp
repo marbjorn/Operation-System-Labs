@@ -1,7 +1,6 @@
 #include <iostream>
 #include <ranges>
 #include <string>
-#include <boost/lexical_cast.hpp>
 
 namespace rng = std::ranges;
 namespace view = rng::views;
@@ -12,7 +11,7 @@ std::string printArray(const int* array, const int& arrSize)
     
     for (int i : view::iota(0, arrSize))
     {
-        str += boost::lexical_cast<std::string>(array[i]);
+        str += std::to_string(array[i]);
         if (i < arrSize - 1) {
             str = str + " ";
         }
