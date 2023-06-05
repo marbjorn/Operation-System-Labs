@@ -6,6 +6,8 @@
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/smart_ptr/scoped_ptr.hpp>
 #include <cstdint>
+#include "MarkerFunction.hpp"
+#include <string>
 
 namespace rng = std::ranges;
 namespace view = rng::views;
@@ -15,7 +17,7 @@ std::shared_ptr<HANDLE[]> fromThread;
 std::shared_ptr<int[]> array;
 int arrSize;
 CRITICAL_SECTION cs;
-
+/*
 void printArray()
 {
     for (int i : view::iota(0, arrSize))
@@ -24,6 +26,7 @@ void printArray()
     }
     std::cout << std::endl;
 }
+*/
 
 DWORD WINAPI Marker(LPVOID v)
 {
@@ -102,7 +105,7 @@ DWORD WINAPI Marker(LPVOID v)
 int main()
 {
 
-    // initialization array
+    // initialization array9
     std::cout << "Array size: " << std::endl;
     std::cin >> arrSize;
 
@@ -155,7 +158,7 @@ int main()
 
         // input thread number to finish
         EnterCriticalSection(&cs);
-        printArray();
+        std::cout << printArray(array.get(), arrSize) << std::endl;
         do
         {
             std::cout << "Enter the N. of thread to stop: ";
