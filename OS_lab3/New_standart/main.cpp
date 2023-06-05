@@ -5,7 +5,6 @@
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 #include <boost/smart_ptr/scoped_ptr.hpp>
-#include <cstdint>
 #include "MarkerFunction.hpp"
 #include <string>
 
@@ -17,16 +16,7 @@ std::shared_ptr<HANDLE[]> fromThread;
 std::shared_ptr<int[]> array;
 int arrSize;
 CRITICAL_SECTION cs;
-/*
-void printArray()
-{
-    for (int i : view::iota(0, arrSize))
-    {
-        std::cout << array[i] << " ";
-    }
-    std::cout << std::endl;
-}
-*/
+
 
 DWORD WINAPI Marker(LPVOID v)
 {
@@ -80,13 +70,7 @@ DWORD WINAPI Marker(LPVOID v)
             if (cur->isStopped == true)
             {
                 EnterCriticalSection(&cs);
-                for (int i = 0; i < arrSize; i++)
-                { // null all marked elements
-                    if (marked[i])
-                    {
-                        array[i] = 0;
-                    }
-                }
+                removeMarksFromElements(array.get(), arrSize, cur->markerNum);
                 cur->markedElementsNum = 0;
                 LeaveCriticalSection(&cs);
                 break;
@@ -110,7 +94,7 @@ int main()
     std::cin >> arrSize;
 
     array.reset(new int[arrSize]);
-    for (int i = 0; i < arrSize; i++)
+    for (int i : view::iota(0, arrSize))
     {
         array[i] = 0;
     }
@@ -136,6 +120,8 @@ int main()
         if (tarr.get()[i]->handle == NULL)
         {
             std::cerr << "Handle of Marker N." << i << " is NULL";
+            std::cout << "Press any key to exit." << std::endl;
+            system("pause");
             return GetLastError();
         }
     }
@@ -150,6 +136,7 @@ int main()
             std::cout << "Wait for multiple objects failed." << std::endl;
             std::cout << "Press any key to exit." << std::endl;
             system("pause");
+            return -1;
         }
 
         // resume threads execution
@@ -184,7 +171,10 @@ int main()
         }
     }
 
+    EnterCriticalSection(&cs);
     std::cout << "All threads are finished";
+    LeaveCriticalSection(&cs);
+
     // closing handles
     for (int i : view::iota(0, tnum))
     {
