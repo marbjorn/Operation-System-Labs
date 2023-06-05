@@ -23,3 +23,11 @@ std::string printArray(const int* array, const int& arrSize)
 bool isNaturalNumber(const int number)  {
     return number > 0;
 }
+
+void removeMarksFromElements(int* array, const int& arrSize, const int& numToRemove) {
+    for (int i : view::iota(0, arrSize)) {
+        if (array[i] == numToRemove) {
+            array[i] = 0;
+        }
+    }
+}
