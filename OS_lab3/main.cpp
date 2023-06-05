@@ -19,7 +19,7 @@ void printArray()
 
 DWORD WINAPI Marker(LPVOID v)
 {
-    auto cur = (ThreadInfo *)v; // current ThreadInfo object
+    auto cur = static_cast<ThreadInfo *>(v); // current ThreadInfo object
 
     EnterCriticalSection(&cs);
     srand(cur->markerNum);
@@ -119,7 +119,7 @@ int main()
         fromMain[i] = CreateEvent(NULL, TRUE, FALSE, NULL);
         fromThread[i] = CreateEvent(NULL, TRUE, FALSE, NULL);
         (*tarr[i]).markerNum = i + 1;
-        (*tarr[i]).handle = CreateThread(NULL, 0, Marker, (LPVOID)tarr[i], 0, &dword);
+        (*tarr[i]).handle = CreateThread(NULL, 0, Marker, static_cast<LPVOID>(tarr[i]), 0, &dword);
         if ((*tarr[i]).handle == NULL)
         {
             return GetLastError();
