@@ -2,9 +2,8 @@ cmake_minimum_required(VERSION 3.0.0)
 project(Lab3 VERSION 0.1.0)
 set (CMAKE_CXX_STANDARD 20)
 
-
 add_executable(Lab3 main.cpp)
-
+set(LAB3_ Lab3)
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
@@ -29,14 +28,8 @@ endif()
 add_executable(test_myprogram
     tests/testLab3.cpp
 )
-target_include_directories(test_myprogram PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 target_link_libraries(test_myprogram
                       ${Boost_SYSTEM_LIBRARY}
                       ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY}
                       )
 add_test(test_myprogram test_myprogram)
-# make "make test" run the test program
-add_custom_target(test
-     DEPENDS myprogram
-     COMMAND ./test_myprogram
-)
