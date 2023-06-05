@@ -2,18 +2,17 @@
 #include <windows.h>
 #include "ThreadInfo.h"
 #include <ranges>
-#include <boost/random.hpp>
+#include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
-
-#include <boost/random/linear_congruential.hpp>
+#include <boost/smart_ptr/scoped_ptr.hpp>
 #include <cstdint>
 
 namespace rng = std::ranges;
 namespace view = rng::views;
 
-HANDLE *fromMain;
-HANDLE *fromThread;
-int *array;
+std::shared_ptr<HANDLE[]> fromMain;
+std::shared_ptr<HANDLE[]> fromThread;
+std::shared_ptr<int[]> array;
 int arrSize;
 CRITICAL_SECTION cs;
 
@@ -28,25 +27,26 @@ void printArray()
 
 DWORD WINAPI Marker(LPVOID v)
 {
-    auto cur = (ThreadInfo *)v; // current ThreadInfo object
+    std::shared_ptr<ThreadInfo> cur(static_cast<ThreadInfo*>(v)); // current ThreadInfo object
 
     EnterCriticalSection(&cs);
-    
-    auto g = boost::random::mt19937{static_cast<std::uint32_t>(cur->markerNum)};
-    auto u = boost::random::uniform_int_distribution <>();
 
-    //srand(cur->markerNum);
-    bool *marked = new bool[arrSize]; // array to track marked elements
+    auto g = boost::random::mt19937{static_cast<std::uint32_t>(cur->markerNum)};
+    auto u = boost::random::uniform_int_distribution<>();
+
+    std::shared_ptr<bool[]> marked(new bool[arrSize]); // array to track marked elements
+
     for (int i : view::iota(0, arrSize))
     {
         marked[i] = false;
     }
+
     LeaveCriticalSection(&cs);
 
     while (true)
     {
         int num = u(g);
-        
+
         num %= (arrSize); // random number
 
         EnterCriticalSection(&cs);
@@ -59,10 +59,10 @@ DWORD WINAPI Marker(LPVOID v)
             LeaveCriticalSection(&cs);
             Sleep(5);
         }
-        else if (array[num] != 0)
+        else
         { // if the element isn't equal 0
             // print info about thread
-            std::cout << "\nMarker №" << cur->markerNum << "\nCan't modify the element with index: "
+            std::cout << "\nMarker N." << cur->markerNum << "\nCan't modify the element with index: "
                       << num << "\nNumber of marked elements: " << cur->markedElementsNum << std::endl
                       << std::endl;
             LeaveCriticalSection(&cs);
@@ -90,12 +90,11 @@ DWORD WINAPI Marker(LPVOID v)
             }
         }
     }
-    delete[] marked;
 
     SetEvent(fromThread[cur->markerNum - 1]);
 
     EnterCriticalSection(&cs);
-    std::cout << "Thread №" << cur->markerNum << " is finished\n";
+    std::cout << "Thread N." << cur->markerNum << " is finished\n";
     LeaveCriticalSection(&cs);
     return 0;
 }
@@ -107,42 +106,43 @@ int main()
     std::cout << "Array size: " << std::endl;
     std::cin >> arrSize;
 
-    array = new int[arrSize];
+    array.reset(new int[arrSize]);
     for (int i = 0; i < arrSize; i++)
     {
         array[i] = 0;
     }
 
     // initialization Marker array
-    std::cout << "Thread number: " << std::endl;
+    std::cout << "Thread amount: " << std::endl;
     int tnum;
     std::cin >> tnum;
-    ThreadInfo **tarr = new ThreadInfo *[tnum];
+    std::shared_ptr<ThreadInfo*[]> tarr(new ThreadInfo*[tnum]); //ThreadInfo **tarr = new ThreadInfo *[tnum];
     DWORD dword;
     InitializeCriticalSection(&cs);
 
     // initization of handle arrays
-    fromMain = new HANDLE[tnum];
-    fromThread = new HANDLE[tnum];
+    fromMain.reset(new HANDLE[tnum]);
+    fromThread.reset(new HANDLE[tnum]);
     for (int i = 0; i < tnum; i++)
     {
-        tarr[i] = new ThreadInfo;
-        fromMain[i] = CreateEvent(NULL, TRUE, FALSE, NULL);
-        fromThread[i] = CreateEvent(NULL, TRUE, FALSE, NULL);
-        (*tarr[i]).markerNum = i + 1;
-        (*tarr[i]).handle = CreateThread(NULL, 0, Marker, (LPVOID)tarr[i], 0, &dword);
-        if ((*tarr[i]).handle == NULL)
+        tarr.get()[i] = new ThreadInfo;
+        fromMain.get()[i] = CreateEvent(NULL, TRUE, FALSE, NULL);
+        fromThread.get()[i] = CreateEvent(NULL, TRUE, FALSE, NULL);
+        tarr.get()[i]->markerNum = i + 1;
+        tarr.get()[i]->handle = CreateThread(NULL, 0, Marker, static_cast<LPVOID>(tarr.get()[i]), 0, &dword);
+        if (tarr.get()[i]->handle == NULL)
         {
+            std::cerr << "Handle of Marker N." << i << " is NULL";
             return GetLastError();
         }
     }
 
     int n;
-    for (int i = 0; i < tnum; i++)
+    for (int i : view::iota(0, tnum))
     {
 
         // waiting 'till all threads stop
-        if (WaitForMultipleObjects(tnum, fromThread, TRUE, INFINITE) == WAIT_FAILED)
+        if (WaitForMultipleObjects(tnum, fromThread.get(), TRUE, INFINITE) == WAIT_FAILED)
         {
             std::cout << "Wait for multiple objects failed." << std::endl;
             std::cout << "Press any key to exit." << std::endl;
@@ -150,7 +150,7 @@ int main()
         }
 
         // resume threads execution
-        for (int j = 0; j < tnum; j++)
+        for (int j : view::iota(0, tnum))
             SetEvent(fromMain[j]);
 
         // input thread number to finish
@@ -158,26 +158,26 @@ int main()
         printArray();
         do
         {
-            std::cout << "Enter the num of thread to stop: ";
+            std::cout << "Enter the N. of thread to stop: ";
             std::cin >> n;
-            if (tarr[n - 1]->isStopped)
+            if (tarr.get()[n - 1]->isStopped)
             {
                 std::cout << "This thread is already finished\n";
             }
-        } while (tarr[n - 1]->isStopped);
+        } while (tarr.get()[n - 1]->isStopped);
 
-        (*tarr[n - 1]).isStopped = true;
+        tarr.get()[n - 1]->isStopped = true;
         LeaveCriticalSection(&cs);
 
         // signal to finish current thread
-        SetEvent(fromMain[n - 1]);
-        WaitForSingleObject(fromThread[n - 1], INFINITE);
+        SetEvent(fromMain.get()[n - 1]);
+        WaitForSingleObject(fromThread.get()[n - 1], INFINITE);
 
         // resume threads execution
-        for (int j = 0; j < tnum; j++)
+        for (int j : view::iota(0, tnum))
         {
-            SetEvent(fromMain[j]);
-            ResetEvent(fromMain[j]);
+            SetEvent(fromMain.get()[j]);
+            ResetEvent(fromMain.get()[j]);
         }
     }
 
@@ -185,17 +185,12 @@ int main()
     // closing handles
     for (int i : view::iota(0, tnum))
     {
-        delete tarr[i];
-        CloseHandle(tarr[i]->handle);
-        CloseHandle(fromThread[i]);
-        CloseHandle(fromMain[i]);
+        delete tarr.get()[i];
+        CloseHandle(tarr.get()[i]->handle);
+        CloseHandle(fromThread.get()[i]);
+        CloseHandle(fromMain.get()[i]);
     }
 
     DeleteCriticalSection(&cs);
-    delete[] tarr;
-    delete[] fromThread;
-    delete[] fromMain;
-
-    delete[] array;
     return 0;
 }
