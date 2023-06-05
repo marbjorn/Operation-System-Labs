@@ -1,170 +1,198 @@
 #include <iostream>
 #include <windows.h>
 #include "ThreadInfo.h"
+#include <ranges>
+#include <boost/random.hpp>
+#include <cstdint>
 
+namespace rng = std::ranges;
+namespace view = rng::views;
 
-HANDLE* fromMain;
-HANDLE* fromThread;
-int* array;
-int arr_size;
+HANDLE *fromMain;
+HANDLE *fromThread;
+int *array;
+int arrSize;
 CRITICAL_SECTION cs;
 
-
-
-void printArray() {
-    for (int i = 0; i < arr_size; i++) {
+void printArray()
+{
+    for (int i : view::iota(0, arrSize))
+    {
         std::cout << array[i] << " ";
     }
     std::cout << std::endl;
 }
 
+DWORD WINAPI Marker(LPVOID v)
+{
+    auto cur = (ThreadInfo *)v; // current ThreadInfo object
 
-DWORD WINAPI Marker(LPVOID v) {
-    auto cur = (ThreadInfo*)v; //current ThreadInfo object
     EnterCriticalSection(&cs);
-    srand(cur->num);
-    
-    bool* marked = new bool[arr_size]; //array to track marked elements
-    for (int i = 0; i < arr_size; i++) {
+    boost::random::mt19937 gen{static_cast<std::uint32_t>(cur->markerNum)};
+    //srand(cur->markerNum);
+    bool *marked = new bool[arrSize]; // array to track marked elements
+    for (int i : view::iota(0, arrSize))
+    {
         marked[i] = false;
     }
     LeaveCriticalSection(&cs);
 
-    while(true) {
-        int num = rand();
+    while (true)
+    {
+        //int num = rand();
+        int num = gen();
         EnterCriticalSection(&cs);
-        //std::cout << "thr " << cur->num << " rand " << num << " ans " << num%arr_size << "\n";
+        // std::cout << "thr " << cur->num << " rand " << num << " ans " << num%arr_size << "\n";
         LeaveCriticalSection(&cs);
-        num %= (arr_size); //random number
-        //EnterCriticalSection(&cs);
+        num %= (arrSize); // random number
+
         EnterCriticalSection(&cs);
-        if (array[num] == 0) { //if the element is equal 0
+        if (array[num] == 0)
+        { // if the element is equal 0
             Sleep(5);
-            array[num] = cur->num;
+            array[num] = cur->markerNum;
             marked[num] = true;
-            ++cur->marked_num;
+            ++cur->markedElementsNum;
             LeaveCriticalSection(&cs);
             Sleep(5);
         }
-        else if (array[num] != 0) { //if the element isn't equal 0
-            //print info about thread
-            std::cout << "\nMarker №" << cur->num << "\nCan't modify the element with index: " 
-                        << num << "\nNumber of marked elements: " << cur->marked_num << std::endl << std::endl;
+        else if (array[num] != 0)
+        { // if the element isn't equal 0
+            // print info about thread
+            std::cout << "\nMarker №" << cur->markerNum << "\nCan't modify the element with index: "
+                      << num << "\nNumber of marked elements: " << cur->markedElementsNum << std::endl
+                      << std::endl;
             LeaveCriticalSection(&cs);
 
-            SetEvent(fromThread[cur->num - 1]);
-            WaitForSingleObject(fromMain[cur->num - 1], INFINITE);
-            ResetEvent(fromThread[cur->num - 1]);
-            ResetEvent(fromMain[cur->num - 1]);
-			WaitForSingleObject(fromMain[cur->num - 1], INFINITE);
+            SetEvent(fromThread[cur->markerNum - 1]);
+            WaitForSingleObject(fromMain[cur->markerNum - 1], INFINITE);
+            ResetEvent(fromThread[cur->markerNum - 1]);
+            ResetEvent(fromMain[cur->markerNum - 1]);
+            WaitForSingleObject(fromMain[cur->markerNum - 1], INFINITE);
 
-            //got signal to finish thread 
-            if (cur->flag == true) {
+            // got signal to finish thread
+            if (cur->isStopped == true)
+            {
                 EnterCriticalSection(&cs);
-                for (int i = 0; i < arr_size; i++) {
-                    if (marked[i]) {
+                for (int i = 0; i < arrSize; i++)
+                { // null all marked elements
+                    if (marked[i])
+                    {
                         array[i] = 0;
                     }
                 }
-                cur->marked_num = 0;
+                cur->markedElementsNum = 0;
                 LeaveCriticalSection(&cs);
                 break;
-
             }
         }
     }
     delete[] marked;
 
-    SetEvent(fromThread[cur->num - 1]);
-    
+    SetEvent(fromThread[cur->markerNum - 1]);
+
     EnterCriticalSection(&cs);
-    std::cout << "Thread №" << cur->num << " is finished\n";
+    std::cout << "Thread №" << cur->markerNum << " is finished\n";
     LeaveCriticalSection(&cs);
     return 0;
 }
 
+int main()
+{
 
-int main() {
-
-    //initialization array
+    // initialization array
     std::cout << "Array size: " << std::endl;
-    std::cin >> arr_size;
+    std::cin >> arrSize;
 
-    array = new int[arr_size];
-    for (int i = 0; i < arr_size; i++) {
+    array = new int[arrSize];
+    for (int i = 0; i < arrSize; i++)
+    {
         array[i] = 0;
     }
 
-
-    //initialization Marker array
+    // initialization Marker array
     std::cout << "Thread number: " << std::endl;
     int tnum;
     std::cin >> tnum;
-    ThreadInfo** tarr = new ThreadInfo*[tnum];
+    ThreadInfo **tarr = new ThreadInfo *[tnum];
     DWORD dword;
     InitializeCriticalSection(&cs);
 
-    //initization of handle arrays
+    // initization of handle arrays
     fromMain = new HANDLE[tnum];
     fromThread = new HANDLE[tnum];
-    for (int i = 0; i < tnum; i++) {
-        tarr[i] = new ThreadInfo; 
+    for (int i = 0; i < tnum; i++)
+    {
+        tarr[i] = new ThreadInfo;
         fromMain[i] = CreateEvent(NULL, TRUE, FALSE, NULL);
         fromThread[i] = CreateEvent(NULL, TRUE, FALSE, NULL);
-        (*tarr[i]).num = i + 1;
-        (*tarr[i]).h = CreateThread(NULL, 0, Marker, (LPVOID)tarr[i], 0, &dword);
-
+        (*tarr[i]).markerNum = i + 1;
+        (*tarr[i]).handle = CreateThread(NULL, 0, Marker, (LPVOID)tarr[i], 0, &dword);
+        if ((*tarr[i]).handle == NULL)
+        {
+            return GetLastError();
+        }
     }
 
     int n;
-    for (int i = 0; i < tnum; i++) {
+    for (int i = 0; i < tnum; i++)
+    {
 
-        //waiting 'till all threads stop
-        WaitForMultipleObjects(tnum, fromThread, TRUE, INFINITE);
+        // waiting 'till all threads stop
+        if (WaitForMultipleObjects(tnum, fromThread, TRUE, INFINITE) == WAIT_FAILED)
+        {
+            std::cout << "Wait for multiple objects failed." << std::endl;
+            std::cout << "Press any key to exit." << std::endl;
+            system("pause");
+        }
 
-        //resume threads execution
-
+        // resume threads execution
         for (int j = 0; j < tnum; j++)
-			SetEvent(fromMain[j]);
+            SetEvent(fromMain[j]);
 
-        //input thread number to finish
-	    EnterCriticalSection(&cs);
+        // input thread number to finish
+        EnterCriticalSection(&cs);
         printArray();
-        do {
+        do
+        {
             std::cout << "Enter the num of thread to stop: ";
             std::cin >> n;
-            if (tarr[n-1]->flag) {
+            if (tarr[n - 1]->isStopped)
+            {
                 std::cout << "This thread is already finished\n";
             }
-        } while (tarr[n-1]->flag);
+        } while (tarr[n - 1]->isStopped);
 
-        (*tarr[n-1]).flag = true;
+        (*tarr[n - 1]).isStopped = true;
         LeaveCriticalSection(&cs);
 
-        //signal to finish current thread
-        SetEvent(fromMain[n-1]);
-        WaitForSingleObject(fromThread[n-1], INFINITE);
+        // signal to finish current thread
+        SetEvent(fromMain[n - 1]);
+        WaitForSingleObject(fromThread[n - 1], INFINITE);
 
-        //resume threads execution
-        for (int j = 0; j < tnum; j++) {
+        // resume threads execution
+        for (int j = 0; j < tnum; j++)
+        {
             SetEvent(fromMain[j]);
             ResetEvent(fromMain[j]);
         }
     }
 
     std::cout << "All threads are finished";
-    //closing handles
-    for (int i = 0; i < tnum; i++) {
-        CloseHandle(tarr[i]->h);
+    // closing handles
+    for (int i : view::iota(0, tnum))
+    {
+        delete tarr[i];
+        CloseHandle(tarr[i]->handle);
         CloseHandle(fromThread[i]);
         CloseHandle(fromMain[i]);
     }
 
+    DeleteCriticalSection(&cs);
     delete[] tarr;
     delete[] fromThread;
     delete[] fromMain;
-    DeleteCriticalSection(&cs);
+
     delete[] array;
     return 0;
-
 }
