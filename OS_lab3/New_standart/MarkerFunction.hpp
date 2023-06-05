@@ -20,3 +20,6 @@ std::string printArray(const int* array, const int& arrSize)
     return str;
 }
 
+bool isNaturalNumber(const int number)  {
+    return number > 0;
+}
