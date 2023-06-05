@@ -3,6 +3,9 @@
 #include "ThreadInfo.h"
 #include <ranges>
 #include <boost/random.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
+
+#include <boost/random/linear_congruential.hpp>
 #include <cstdint>
 
 namespace rng = std::ranges;
@@ -28,7 +31,10 @@ DWORD WINAPI Marker(LPVOID v)
     auto cur = (ThreadInfo *)v; // current ThreadInfo object
 
     EnterCriticalSection(&cs);
-    boost::random::mt19937 gen{static_cast<std::uint32_t>(cur->markerNum)};
+    
+    auto g = boost::random::mt19937{static_cast<std::uint32_t>(cur->markerNum)};
+    auto u = boost::random::uniform_int_distribution <>();
+
     //srand(cur->markerNum);
     bool *marked = new bool[arrSize]; // array to track marked elements
     for (int i : view::iota(0, arrSize))
@@ -39,11 +45,8 @@ DWORD WINAPI Marker(LPVOID v)
 
     while (true)
     {
-        //int num = rand();
-        int num = gen();
-        EnterCriticalSection(&cs);
-        // std::cout << "thr " << cur->num << " rand " << num << " ans " << num%arr_size << "\n";
-        LeaveCriticalSection(&cs);
+        int num = u(g);
+        
         num %= (arrSize); // random number
 
         EnterCriticalSection(&cs);
