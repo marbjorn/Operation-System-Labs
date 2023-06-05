@@ -12,7 +12,7 @@ HANDLE StartProcess(string command_line)
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
 
-	if (!CreateProcess(NULL, (LPSTR)command_line.c_str(), NULL, NULL,
+	if (!CreateProcess(NULL, const_cast<LPSTR>(command_line.c_str()), NULL, NULL,
 					   FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi))
 	{
 		return NULL;
