@@ -1,8 +1,8 @@
 #include <ostream>
 struct employee {
-    int num;
+    int num = 0;
     char name[10];
-    double hours;
+    double hours = 0;
     void print(std::ostream &out){
         out << "ID: " << num
         << "\tName: " << name
@@ -11,5 +11,5 @@ struct employee {
 };
 
 int empCmp(const void* p1, const void* p2){
-    return ((employee*)p1)->num - ((employee*)p2)->num;
+    return reinterpret_cast<employee*>(const_cast<void*>(p1))->num - reinterpret_cast<employee*>(const_cast<void*>(p2))->num;
 }

@@ -1,20 +1,20 @@
-#include<iostream>
-#include<fstream>
-#include<string>
-#include<Windows.h>
-#include"message.h"
-#include<vector>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <Windows.h>
+#include "message.h"
+#include <vector>
 
-using namespace std;
-
-HANDLE start_process(string command_line) {
+HANDLE StartProcess(string command_line)
+{
 	STARTUPINFO si;
 	PROCESS_INFORMATION pi;
 	ZeroMemory(&si, sizeof(si));
 	si.cb = sizeof(si);
 
-	if (!CreateProcess(NULL, (LPSTR)command_line.c_str(), NULL, NULL,
-		FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi)) {
+	if (!CreateProcess(NULL, const_cast<LPSTR>(command_line.c_str()), NULL, NULL,
+					   FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi))
+	{
 		return NULL;
 	}
 
@@ -22,94 +22,106 @@ HANDLE start_process(string command_line) {
 	return pi.hProcess;
 }
 
-int main() {
-	string file_name;
-	cout << "Enter file name:";
-	cin >> file_name;
-	fstream file(file_name, ios::binary|ios::out);
-	int number_of_records;
-	cout << "Enter number of records:";
-	cin >> number_of_records;
-	if (!file.is_open()) {
+int main()
+{
+	std::string fileName;
+	std::cout << "Enter file name:";
+	std::cin >> fileName;
+	std::fstream file(fileName, ios::binary | ios::out);
+	int numberOfRecords;
+	std::cout << "Enter number of records:";
+	std::cin >> numberOfRecords;
+	if (!file.is_open())
+	{
 		cout << "Error while creating file!";
 		return 0;
 	}
 	file.close();
 
-	int number_of_senders;
-	cout << "Enter number of Senders:";
-	cin >> number_of_senders;
+	int numberOfSenders;
+	std::cout << "Enter number of Senders:";
+	std::cin >> numberOfSenders;
 
-	HANDLE* senders = new HANDLE[number_of_senders];
-	HANDLE* events = new HANDLE[number_of_senders];
-
-
+	HANDLE *senders = new HANDLE[numberOfSenders];
+	HANDLE *events = new HANDLE[numberOfSenders];
 
 	HANDLE mutex = CreateMutex(NULL, FALSE, "mutex");
-	HANDLE write_sem = CreateSemaphore(NULL, number_of_records, number_of_records, "write_sem");
-	HANDLE read_sem = CreateSemaphore(NULL, 0, number_of_records, "read_sem");
-	if (!mutex || !write_sem || !read_sem){
-		cout << "Error";
+	HANDLE writeSem = CreateSemaphore(NULL, numberOfRecords, numberOfRecords, "write_sem");
+	HANDLE readSem = CreateSemaphore(NULL, 0, numberOfRecords, "read_sem");
+	if (!mutex || !writeSem || !readSem)
+	{
+		std::cout << "Error while creating syncronization objects";
 		return -1;
 	}
 
-	for (int i = 0; i < number_of_senders; ++i) {
-		string command_line = "sender.exe " + file_name + " " + to_string(number_of_records) + " " + to_string(i);
+	// open processes
+	for (int i = 0; i < numberOfSenders; ++i)
+	{
+		std::string commandLine = "sender.exe " + fileName + " " + to_string(numberOfRecords) + " " + to_string(i);
 
 		HANDLE event = CreateEvent(NULL, FALSE, FALSE, (to_string(i) + "ready").c_str());
 		events[i] = event;
-		senders[i] = start_process(command_line);
-		if (senders[i] == NULL) {
-			cout << "Error while creating process";
+		senders[i] = StartProcess(commandLine);
+		if (senders[i] == NULL)
+		{
+			std::cout << "Error while creating process";
 			return -1;
 		}
 	}
 
-	WaitForMultipleObjects(number_of_senders, events, TRUE, INFINITE);
+	WaitForMultipleObjects(numberOfSenders, events, TRUE, INFINITE);
 
 	int action = 1;
 
-	while (true) {
-		cout << "1 to read message" << "\n";
-		cout << "0 to exit" << "\n";
-		cin >> action;
-		if (action != 0 && action != 1) {
-			cout << "Unknown command";
+	while (true)
+	{
+		std::cout << "1 to read message"
+				  << "\n";
+		std::cout << "0 to exit"
+				  << "\n";
+		std::cin >> action;
+		if (action != 0 && action != 1)
+		{
+			std::cout << "Unknown command";
 			continue;
 		}
-		if (action == 0) {
+		if (action == 0)
+		{
 			break;
 		}
-		WaitForSingleObject(read_sem, INFINITE);
+		WaitForSingleObject(readSem, INFINITE);
 		WaitForSingleObject(mutex, INFINITE);
-		file.open(file_name, ios::binary | ios::in);
+		// read message
+		file.open(fileName, ios::binary | ios::in);
 		message mes;
 		file >> mes;
-		cout << "new message:" << mes.get_text() << "\n";
-		vector<message> file_text;
-		while (file>>mes) {
-			file_text.push_back(mes);
+		std::cout << "new message:" << mes.get_text() << "\n";
+		std::vector<message> fileText;
+		while (file >> mes)
+		{
+			fileText.push_back(mes);
 		}
 		file.close();
-		file.open(file_name, ios::binary | ios::out);
-		for (int i = 0; i < file_text.size(); ++i) {
-			file << file_text[i];
+		file.open(fileName, ios::binary | ios::out);
+		for (int i = 0; i < fileText.size(); ++i)
+		{
+			file << fileText[i];
 		}
 		file.close();
 		ReleaseMutex(mutex);
-		ReleaseSemaphore(write_sem, 1, NULL);
-
+		ReleaseSemaphore(writeSem, 1, NULL);
 	}
 
-	for (int i = 0; i < number_of_senders; ++i) {
-		CloseHandle(events[i]);
+	for (int i = 0; i < numberOfSenders; ++i)
+	{
 		CloseHandle(senders[i]);
+		CloseHandle(events[i]);
 	}
 
-	delete[] events;
-	delete[] senders;
+	CloseHandle(readSem);
+	CloseHandle(writeSem);
 	CloseHandle(mutex);
-	CloseHandle(read_sem);
-	CloseHandle(write_sem);
+	delete[] senders;
+	delete[] events;
 	return 0;
 }

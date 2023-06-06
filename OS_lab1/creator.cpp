@@ -17,14 +17,14 @@ int main(int argc, char* argv[])
 		std::cout << std::endl;
 	}
 
+	//write info about employees
 	fout.write((char*)&records_num, sizeof(int));
 	for (int i = 0; i < records_num; i++) {
 		fout.write((char*)&records[i], sizeof(employee));
 	}
 
-	fout.close();
-
 	delete[] records;
+	fout.close();
 
 	return 0;
 }

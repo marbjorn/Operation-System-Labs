@@ -1,52 +1,64 @@
-#include<iostream>
-#include<fstream>
-#include<string>
-#include<Windows.h>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <Windows.h>
 #include "message.h"
 
-using namespace std;
-
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
+	// open syncronization objects
 	HANDLE ready = OpenEvent(EVENT_MODIFY_STATE, FALSE, (to_string(atoi(argv[3])) + "ready").c_str());
 	HANDLE mutex = OpenMutex(MUTEX_ALL_ACCESS, FALSE, "mutex");
-	HANDLE write_sem = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, "write_sem");
-	HANDLE read_sem = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, "read_sem");
-	if (!ready || !read_sem || !write_sem || !mutex) {
-		cout << "Error" << "\n";
+	HANDLE writeSem = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, "write_sem");
+	HANDLE readSem = OpenSemaphore(SEMAPHORE_ALL_ACCESS, FALSE, "read_sem");
+	if (!ready || !readSem || !writeSem || !mutex)
+	{
+		std::cout << "Error while opening objects"
+				  << "\n";
 		return -1;
 	}
 	SetEvent(ready);
-	fstream file;
+	std::fstream file;
 	int action;
-	while (true) {
-		cout << "1 to write message" << "\n";
-		cout << "0 to exit" << "\n";
-		cin >> action;
-		if (action != 0 && action != 1) {
-			cout << "Unknown command" << "\n";
+	while (true)
+	{
+		std::cout << "1 to write message"
+				  << "\n";
+		std::cout << "0 to exit"
+				  << "\n";
+		std::cin >> action;
+		if (action != 0 && action != 1)
+		{
+			std::cout << "Unknown command"
+					  << "\n";
 			continue;
 		}
-		if (action == 0) {
+		if (action == 0)
+		{
 			break;
 		}
-		cin.ignore();
+		std::cin.ignore();
 		string text;
-		cout << "Enter message text:";
-		getline(cin, text);
-		WaitForSingleObject(write_sem, INFINITE);
+		// sending message
+		std::cout << "Enter message text:";
+		getline(std::cin, text);
+		WaitForSingleObject(writeSem, INFINITE);
 		WaitForSingleObject(mutex, INFINITE);
+
 		message mes(text);
 		file.open(argv[1], ios::binary | ios::app);
 		file << mes;
 		file.close();
 		ReleaseMutex(mutex);
-		ReleaseSemaphore(read_sem, 1, NULL);
-		cout << "Written succesfully"<<"\n";
+		ReleaseSemaphore(readSem, 1, NULL);
+		std::cout << "Written succesfully"
+				  << "\n";
 	}
 
+	CloseHandle(readSem);
+	CloseHandle(writeSem);
 	CloseHandle(mutex);
 	CloseHandle(ready);
-	CloseHandle(write_sem);
-	CloseHandle(read_sem);
+
 	return 0;
 }

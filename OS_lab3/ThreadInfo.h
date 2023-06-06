@@ -1,14 +1,15 @@
 #include <windows.h>
 
-struct ThreadInfo {
-    //handle
-    HANDLE h;
+struct ThreadInfo
+{
+    // handle
+    HANDLE handle;
 
-    //Marker number
-    int num;
+    // Marker number
+    int markerNum;
 
-    //stopped
-    bool flag = false;
+    // stopped
+    bool isStopped = false;
 
-    int marked_num = 0;
+    int markedElementsNum = 0;
 };
