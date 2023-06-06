@@ -11,12 +11,12 @@ int main(int argc, char *argv[])
 
 	//read an array
 
-	fin.read((char *)&records_num, sizeof(int));
+	fin.read(reinterpret_cast<char *>(&records_num), sizeof(int));
 	employee *records = new employee[records_num];
 
 	for (int i = 0; i < records_num; i++)
 	{
-		fin.read((char *)&records[i], sizeof(employee));
+		fin.read(reinterpret_cast<char *>(&records[i]), sizeof(employee));
 	}
 
 	//print info

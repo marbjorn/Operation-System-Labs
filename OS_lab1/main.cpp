@@ -54,14 +54,14 @@ int main()
 	// read info from binary file
 	std::cout << "Information in binary file:" << std::endl;
 	std::ifstream fin(binaryFileName, std::ios::binary);
-	fin.read((char *)&recordsNum, sizeof(int));
+	fin.read(reinterpret_cast<char *>(&recordsNum), sizeof(int));
 	
 	std::vector<employee> records(recordsNum);
 
 	//read an array
 	for (int i = 0; i < recordsNum; i++)
 	{
-		fin.read((char *)&records[i], sizeof(employee));
+		fin.read(reinterpret_cast<char *>(&records[i]), sizeof(employee));
 	}
 
 	printInfo(records);
