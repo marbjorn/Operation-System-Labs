@@ -9,13 +9,13 @@ double averageValue;
 
 bool createThread(DWORD WINAPI func(LPVOID v), ArrData *array, DWORD &dword)
 {
-    HANDLE hThread = CreateThread( // create thread
-        NULL,                      // define if this thread can be inherited
-        0,                         // stack size
-        func,                      // function name
-        (void *)array,             // argument to pass
-        0,                         // special flag to postpone the start of thread, etc.
-        &dword                     // variable to save thread identificator
+    HANDLE hThread = CreateThread(      // create thread
+        NULL,                           // define if this thread can be inherited
+        0,                              // stack size
+        func,                           // function name
+        static_cast<void *> (array), // argument to pass
+        0,                              // special flag to postpone the start of thread, etc.
+        &dword                          // variable to save thread identificator
     );
 
     // if thread is not started
@@ -49,7 +49,7 @@ void printArray(const ArrData *array)
 DWORD WINAPI MinMax(LPVOID v)
 {
 
-    ArrData *array = (ArrData *)v;
+    ArrData *array = static_cast<ArrData *>(v);
     maxValue = INT_MIN;
     minValue = INT_MAX;
     for (int i = 0; i < array->N; i++)
@@ -74,7 +74,7 @@ DWORD WINAPI MinMax(LPVOID v)
 // function to find average value of elements in array
 DWORD WINAPI Average(LPVOID v)
 {
-    ArrData *array = (ArrData *)v;
+    ArrData *array = static_cast<ArrData *>(v);
     averageValue = 0;
     for (int i = 0; i < array->N; i++)
     {
@@ -82,7 +82,7 @@ DWORD WINAPI Average(LPVOID v)
         Sleep(12);
     }
 
-    averageValue /= (double)array->N;
+    averageValue /= static_cast<double>(array->N);
     std::cout << "Average is " << averageValue << std::endl;
 
     return 0;
@@ -114,7 +114,7 @@ int main()
     {
         if (array->arr[i] == minValue || array->arr[i] == maxValue)
         {
-            array->arr[i] = (int)round(averageValue);
+            array->arr[i] = static_cast<int>(round(averageValue));
         }
     }
 
