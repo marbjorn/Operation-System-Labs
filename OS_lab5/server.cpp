@@ -36,10 +36,10 @@ void readDataSTD(){
 employee* findEmp(int id){
     employee key;
     key.num = id;
-    return (employee*)bsearch((const char*)(&key), (const char*)(emps), empCount, sizeof(employee), empCmp);
+    return (employee*)bsearch(reinterpret_cast<const char*>(&key), reinterpret_cast<const char*>(emps), empCount, sizeof(employee), empCmp);
 }
 
-void startPocesses(int count){
+void startProcesses(int count){
     char buff[10];
     for(int i = 0; i < count; i++) {
         char cmdargs[80] = "client.exe ";
@@ -62,7 +62,7 @@ void startPocesses(int count){
 }
 
 DWORD WINAPI messaging(LPVOID p){
-    HANDLE hPipe = (HANDLE)p;
+    HANDLE hPipe = static_cast<HANDLE>(p);
     //getting emp with id -1 means for client that error occurred
     employee* errorEmp = new employee;
     errorEmp->num = -1;
@@ -134,10 +134,11 @@ DWORD WINAPI messaging(LPVOID p){
             }
         }
     }
+    
+    delete errorEmp;
     FlushFileBuffers(hPipe);
     DisconnectNamedPipe(hPipe);
     CloseHandle(hPipe);
-    delete errorEmp;
     return 0;
 }
 
@@ -162,7 +163,11 @@ void openPipes(int clientCount){
     std::cout << "Clients connected to pipe." << std::endl;
     WaitForMultipleObjects(clientCount, hThreads, TRUE, INFINITE);
     std::cout << "All clients are disconnected." << std::endl;
+    for (int i = 0; i < clientCount; i++) {
+        CloseHandle(hThreads[i]);
+    }
     delete[] hThreads;
+    CloseHandle(hPipe);
 }
 
 int main() {
@@ -183,7 +188,7 @@ int main() {
     for(int i = 0; i < empCount; ++i)
         empIsModifying[i] = false;
     hReadyEvents = new HANDLE[clientCount];
-    startPocesses(clientCount);
+    startProcesses(clientCount);
     WaitForMultipleObjects(clientCount, hReadyEvents, TRUE, INFINITE);
     std::cout << "All processes are ready.Starting." << std::endl;
     SetEvent(hstartALL);
@@ -194,9 +199,15 @@ int main() {
         emps[i].print(std::cout);
     std::cout << "Press any key to exit" << std::endl;
     getch();
-    DeleteCriticalSection(&empsCS);
-    delete[] empIsModifying;
+    
+
+    for (int i = 0; i < clientCount; i++) {
+        CloseHandle(hReadyEvents[i]);
+    }
     delete[] hReadyEvents;
+    delete[] empIsModifying;
+    CloseHandle(hstartALL);
+    DeleteCriticalSection(&empsCS);
     delete[] emps;
     return 0;
 }
